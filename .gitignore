@@ -1,0 +1,42 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Configuration files (содержат credentials)
+config.json
+hide_me.py
+
+# Data and session history
+data/
+data/sessions/
+data/test_sessions/
+
+# Logs
+*.log
+logs/
+logs/chroma_mcp_*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Screenshots
+screenshots/
+
+# Chroma vector database
+chroma_data/
+*.chroma

@@ -1,0 +1,60 @@
+{
+  "hh_credentials": {
+    "login": "your_email@example.com",
+    "password": "your_password"
+  },
+  "resume": {
+    "id": "resume_001",
+    "title": "Python Backend Developer",
+    "tags": [
+      "Python",
+      "Django",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker",
+      "Redis",
+      "REST API",
+      "Asyncio"
+    ],
+    "summary": "Опытный Python разработчик с 3+ годами опыта в разработке backend систем. Специализация: микросервисная архитектура, REST API, оптимизация производительности. Имею опыт работы с Django, FastAPI, PostgreSQL, Redis, Docker.",
+    "resume_url": "/path/to/resume.pdf",
+    "hh_resume_url": "https://hh.ru/resume/..."
+  },
+  "search_settings": {
+    "max_applications": 5,
+    "vacancy_search_query": "Python Backend разработчик",
+    "city": "Москва",
+    "experience": "between1And3",
+    "employment": "full",
+    "schedule": "fullDay"
+  },
+  "llm_settings": {
+    "model": "MiniMaxAI/MiniMax-M2",
+    "base_url": "https://foundation-models.api.cloud.ru/v1",
+    "temperature": 0.3,
+    "timeout": 180,
+    "max_retries": 2
+  },
+  "browser_settings": {
+    "headless": false,
+    "timeout": 30000,
+    "wait_after_action": 2
+  },
+  "history_settings": {
+    "sessions_to_load": 10,
+    "check_duplicates_in_last": 50,
+    "data_dir": "data/sessions"
+  },
+  "chroma_settings": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8091,
+    "persist_directory": "./chroma_data",
+    "collections": {
+      "vacancies": "job_vacancies",
+      "cover_letters": "cover_letters",
+      "resume": "resume_data"
+    }
+  }
+}
+
