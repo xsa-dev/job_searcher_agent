@@ -68,6 +68,36 @@ def supervisor_node(state: AgentState) -> AgentState:
         logger.info("🔍 Нужно найти вакансии → Browser Agent (поиск)")
         state["next_agent"] = "browser_agent"
     
+    elif state["browser_status"] == "vacancies_found" and not state["vacancies"]:
+        # Увеличиваем счетчик попыток
+        search_attempts = state.get("search_attempts", 0) + 1
+        state["search_attempts"] = search_attempts
+        
+        if search_attempts >= 3:
+            logger.warning(f"⚠️ Превышен лимит попыток поиска ({search_attempts}), завершаем работу")
+            state["error_message"] = f"Не удалось найти вакансии после {search_attempts} попыток"
+            state["browser_status"] = "error"
+            state["next_agent"] = "end"
+        else:
+            logger.info(f"🔍 Вакансии не найдены (попытка {search_attempts}/3), продолжаем поиск → Browser Agent")
+            state["browser_status"] = "logged_in"  # Сбрасываем для продолжения поиска
+            state["next_agent"] = "browser_agent"
+    
+    elif state["browser_status"] == "search_failed":
+        # Увеличиваем счетчик попыток
+        search_attempts = state.get("search_attempts", 0) + 1
+        state["search_attempts"] = search_attempts
+        
+        if search_attempts >= 3:
+            logger.warning(f"⚠️ Превышен лимит попыток поиска ({search_attempts}), завершаем работу")
+            state["error_message"] = f"Не удалось найти вакансии после {search_attempts} попыток"
+            state["browser_status"] = "error"
+            state["next_agent"] = "end"
+        else:
+            logger.info(f"🔍 Поиск не дал результатов (попытка {search_attempts}/3), продолжаем выполнение плана → Browser Agent")
+            state["browser_status"] = "logged_in"  # Сбрасываем для продолжения поиска
+            state["next_agent"] = "browser_agent"
+    
     elif state["vacancies"] and not state["current_vacancy"]:
         # Выбираем следующую вакансию
         if state["current_vacancy_index"] < len(state["vacancies"]):

@@ -358,7 +358,7 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
    
 2. Проверь наличие кнопки 'Откликнуться' или 'Respond' на странице:
    - Если кнопки НЕТ (есть текст "Отклик отправлен" или "Already applied") → 
-     ПРОПУСТИ эту вакансию, верни статус 'already_applied'
+     ПРОПУСТИ эту вакансию, если это не главная вкладка, то закрой вкладку с вакансией и верни статус 'already_applied'
    - Если кнопка ЕСТЬ → продолжай
    
 3. Кликни на кнопку 'Откликнуться'
@@ -515,14 +515,8 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
         state["browser_status"] = "logged_in"
         logger.info("✅ Статус обновлен: logged_in")
         
-    # 2. Проверка поиска вакансий
-    elif "vacancies_found" in expected_status or "вакансии найдены" in last_response.lower():
-        state["browser_status"] = "vacancies_found"
-        if not state["vacancies"]:
-            logger.warning("⚠️ Вакансии не найдены в результате, используем заглушку")
-        logger.info("✅ Статус обновлен: vacancies_found")
-        
-    # 3. КОМБИНИРОВАННАЯ ПРОВЕРКА ОТПРАВКИ ОТКЛИКА
+    # 2. КОМБИНИРОВАННАЯ ПРОВЕРКА ОТПРАВКИ ОТКЛИКА (ПРИОРИТЕТ!)
+    # Проверяем ПЕРЕД vacancies_found, чтобы не пропустить успешный отклик
     elif expected_status == "application_sent":
         logger.info("🔍 Проверка отправки отклика (комбинированный подход)...")
         
@@ -645,6 +639,17 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
             logger.info("=" * 80)
         else:
             logger.warning("⚠️ Не удалось подтвердить отправку отклика")
+    
+    # 3. Проверка поиска вакансий (ПОСЛЕ проверки application_sent)
+    elif "vacancies_found" in expected_status or "вакансии найдены" in last_response.lower():
+        if state["vacancies"]:
+            state["browser_status"] = "vacancies_found"
+            # Сбрасываем счетчик попыток при успешном поиске
+            state["search_attempts"] = 0
+            logger.info("✅ Статус обновлен: vacancies_found")
+        else:
+            state["browser_status"] = "search_failed"
+            logger.warning("⚠️ Вакансии не найдены, статус: search_failed")
     
     # 4. Обработка случая когда отклик уже был отправлен ранее
     elif "already_applied" in last_response.lower():

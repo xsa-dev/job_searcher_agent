@@ -47,9 +47,10 @@ class AgentState(TypedDict):
     applied_count: int
     max_applications: int
     rejected_count: int
+    search_attempts: int  # Количество попыток поиска вакансий
     
     # Статус браузера и агентов
-    browser_status: str  # "idle", "logged_in", "vacancies_found", "application_sent", "error"
+    browser_status: str  # "idle", "logged_in", "vacancies_found", "application_sent", "error", "search_failed"
     browser_session_active: bool
     
     # История предыдущих сессий
@@ -109,6 +110,7 @@ def create_initial_state(
         applied_count=0,
         max_applications=max_applications,
         rejected_count=0,
+        search_attempts=0,
         browser_status="idle",
         browser_session_active=False,
         previous_sessions=previous_sessions or [],
