@@ -31,6 +31,30 @@ def supervisor_node(state: AgentState) -> AgentState:
         logger.info("📋 План отсутствует или требует обновления → Planner")
         state["next_agent"] = "planner"
     
+    # Обработка успешной отправки отклика
+    elif state["browser_status"] == "application_sent":
+        logger.info(f"✅ Отклик отправлен! Прогресс: {state['applied_count']}/{state['max_applications']}")
+        
+        # Проверяем, достигнут ли лимит откликов
+        if state["applied_count"] >= state["max_applications"]:
+            logger.info(f"🎯 Достигнут лимит откликов: {state['applied_count']}/{state['max_applications']}")
+            state["next_agent"] = "end"
+        # Если есть еще вакансии в списке, продолжаем
+        elif state["vacancies"] and state["current_vacancy_index"] < len(state["vacancies"]):
+            # Выбираем следующую вакансию
+            state["current_vacancy"] = state["vacancies"][state["current_vacancy_index"]]
+            logger.info(f"📌 Выбрана следующая вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])}: {state['current_vacancy'].get('title', 'N/A')}")
+            state["next_agent"] = "cover_letter_agent"
+        # Если вакансии закончились, но лимит не достигнут - ищем новые
+        elif state["applied_count"] < state["max_applications"]:
+            logger.info(f"🔍 Нужно найти больше вакансий ({state['applied_count']}/{state['max_applications']}) → Browser Agent (поиск)")
+            # Сбрасываем статус для продолжения поиска
+            state["browser_status"] = "logged_in"
+            state["next_agent"] = "browser_agent"
+        else:
+            logger.info("✅ Все отклики отправлены")
+            state["next_agent"] = "end"
+    
     elif state["vacancies"] and state["current_vacancy_index"] >= len(state["vacancies"]):
         # Все вакансии обработаны
         logger.info("✅ Все вакансии обработаны")

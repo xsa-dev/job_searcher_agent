@@ -561,20 +561,41 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
                 updated_vacancy = await _parse_vacancy_details(tools_by_name, state["current_vacancy"])
                 state["current_vacancy"] = updated_vacancy
             
-            # Обновляем статус и счетчик
-            state["browser_status"] = "application_sent"
-            state["applied_count"] += 1
-            
             # Добавляем timestamp и метаданные
             from datetime import datetime
             current_vacancy = state.get("current_vacancy", {})
+            vacancy_url = current_vacancy.get("url", "")
+            
+            # Если вакансия не была в списке vacancies, добавляем её туда
+            if "vacancies" not in state:
+                state["vacancies"] = []
+            
+            # Проверяем, есть ли уже эта вакансия в списке
+            vacancy_in_list = False
+            if vacancy_url:
+                for v in state["vacancies"]:
+                    if v.get("url") == vacancy_url:
+                        vacancy_in_list = True
+                        # Обновляем существующую вакансию
+                        v.update(current_vacancy)
+                        break
+            
+            # Если вакансии нет в списке, добавляем её
+            if not vacancy_in_list and current_vacancy:
+                state["vacancies"].append(current_vacancy.copy())
+                logger.info(f"   📋 Вакансия добавлена в список vacancies (всего: {len(state['vacancies'])})")
+            
+            # Обновляем статус и счетчик
+            state["browser_status"] = "application_sent"
+            state["applied_count"] = state.get("applied_count", 0) + 1
+            
+            # Добавляем метаданные к вакансии
             current_vacancy["applied"] = True
             current_vacancy["applied_at"] = datetime.now().isoformat()
             current_vacancy["cover_letter"] = state.get("cover_letter", "")
             current_vacancy["session_id"] = state.get("session_id", "")
             
             # Добавляем URL в список уже откликнутых
-            vacancy_url = current_vacancy.get("url", "")
             if vacancy_url and vacancy_url not in state["already_applied_urls"]:
                 state["already_applied_urls"].add(vacancy_url)
                 logger.info(f"   📌 URL добавлен в список откликнутых: {vacancy_url[:50]}...")
@@ -602,7 +623,8 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
             logger.info(f"✅ Отклик #{state['applied_count']}/{state['max_applications']} успешно отправлен!")
             logger.info(f"   Вакансия: {current_vacancy.get('title', 'N/A')}")
             logger.info(f"   Компания: {current_vacancy.get('company', 'N/A')}")
-            logger.info(f"   URL: {vacancy_url[:60]}...")
+            logger.info(f"   URL: {vacancy_url[:60] if vacancy_url else 'N/A'}...")
+            logger.info(f"   📊 Статистика: applied_count={state['applied_count']}, vacancies={len(state.get('vacancies', []))}, processed={len(state.get('processed_vacancies', []))}")
             logger.info("=" * 80)
         else:
             logger.warning("⚠️ Не удалось подтвердить отправку отклика")
