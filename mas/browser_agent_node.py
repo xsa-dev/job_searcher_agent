@@ -397,8 +397,11 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
     truncated_history = _truncate_messages(state["messages"])
     messages = truncated_history + [SystemMessage(content=prompt)]
     max_iterations = 50
+    vacancy_added = False  # Флаг для отслеживания добавления вакансии
+    last_iteration = 0  # Номер последней итерации для логирования
     
     for iteration in range(max_iterations):
+        last_iteration = iteration + 1
         logger.info(f"🔄 Browser Agent итерация {iteration + 1}/{max_iterations}")
         
         # Получаем ответ от модели с инструментами
@@ -483,6 +486,15 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
         
         # Добавляем результаты инструментов в историю
         messages.extend(tool_messages)
+        
+        # Проверяем успешную отправку отклика для досрочного завершения цикла
+        # Это позволяет сэкономить итерации после успешного отклика
+        if expected_status == "application_sent":
+            sequence_detected = _detect_application_sequence(messages)
+            if sequence_detected:
+                logger.info(f"🔄 Обнаружена последовательность отклика на итерации {iteration + 1} - прерываем цикл для экономии итераций")
+                vacancy_added = True
+                break
         
         # Обрезаем историю сообщений после каждой итерации для экономии токенов
         # Оставляем место для следующей итерации (системное сообщение + ответ модели + результаты инструментов)
@@ -584,6 +596,11 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
             if not vacancy_in_list and current_vacancy:
                 state["vacancies"].append(current_vacancy.copy())
                 logger.info(f"   📋 Вакансия добавлена в список vacancies (всего: {len(state['vacancies'])})")
+                # Логируем сброс итераций после добавления вакансии
+                if vacancy_added:
+                    logger.info(f"   🔄 Итерации были сброшены досрочно после успешной отправки отклика (вакансия добавлена на итерации {last_iteration}/{max_iterations})")
+                else:
+                    logger.info(f"   🔄 Вакансия добавлена после завершения ReAct цикла (выполнено {last_iteration}/{max_iterations} итераций)")
             
             # Обновляем статус и счетчик
             state["browser_status"] = "application_sent"
