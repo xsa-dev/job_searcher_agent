@@ -103,11 +103,16 @@ cp config.example.json config.json
 }
 ```
 
-5. **Создать hide_me.py с API ключом**
+5. **Создать .env файл с API ключом**
 
-```python
-# hide_me.py
-api_key = "your_api_key_here"
+```bash
+touch .env
+```
+
+Добавьте в `.env`:
+
+```env
+OPENAI_API_KEY=your_api_key_here
 ```
 
 ## 🚀 Использование
@@ -202,7 +207,7 @@ job_searcher_agent/
 │   └── sessions/          # История откликов (JSON)
 ├── config.example.json    # Пример конфигурации
 ├── config.json            # Ваша конфигурация (не в git)
-├── hide_me.py             # API ключ (не в git)
+├── .env                   # API ключ (не в git)
 ├── test_graph.py          # Тесты
 ├── GRAPH_AGENT_README.md  # Детальная документация
 └── README.md              # Этот файл
@@ -236,9 +241,16 @@ cp config.example.json config.json
 
 ### Ошибка "api_key not found"
 
-Создайте `hide_me.py`:
-```python
-api_key = "your_api_key_here"
+Создайте `.env` файл в корне проекта:
+
+```bash
+touch .env
+```
+
+И добавьте в него:
+
+```env
+OPENAI_API_KEY=your_api_key_here
 ```
 
 ### Ошибка доступа к LLM
@@ -300,5 +312,5 @@ MIT License
 
 ---
 
-**Примечание**: Убедитесь, что файлы `config.json` и `hide_me.py` добавлены в `.gitignore` чтобы не публиковать credentials.
+**Примечание**: Убедитесь, что файлы `config.json` и `.env` добавлены в `.gitignore` чтобы не публиковать credentials.
 
