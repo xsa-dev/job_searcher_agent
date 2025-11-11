@@ -2,6 +2,15 @@
 
 Мультиагентная система на базе **LangGraph** для автоматизации откликов на вакансии HeadHunter с генерацией персонализированных сопроводительных писем.
 
+## QUICK START
+
+```
+git clone что-то-там
+touch .env
+echo "OPENAI_API_KEY="HIDE_ME" > .env
+uv run main.py
+```
+
 ## 🎯 Возможности
 
 - **4 специализированных агента**: Supervisor, Planner, Browser Agent, Cover Letter Agent
