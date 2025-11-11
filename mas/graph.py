@@ -71,4 +71,3 @@ def create_graph(mcp_tools: list, model: ChatOpenAI) -> StateGraph:
     logger.info("✅ Граф создан успешно")
     
     return workflow.compile()
-

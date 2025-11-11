@@ -52,6 +52,7 @@ class AgentState(TypedDict):
     # Статус браузера и агентов
     browser_status: str  # "idle", "logged_in", "vacancies_found", "application_sent", "error", "search_failed"
     browser_session_active: bool
+    browser_settings: dict  # Настройки браузера (headless, timeout, wait_after_action)
     
     # История предыдущих сессий
     previous_sessions: list[dict]
@@ -78,7 +79,8 @@ def create_initial_state(
     previous_sessions: list[dict] = None,
     already_applied_urls: set[str] = None,
     use_recommended: bool = False,
-    chroma_enabled: bool = True
+    chroma_enabled: bool = True,
+    browser_settings: dict = None
 ) -> AgentState:
     """
     Создает начальное состояние для графа
@@ -87,7 +89,10 @@ def create_initial_state(
         use_recommended: Если True, использовать рекомендованные вакансии с главной страницы
                         вместо детального поиска. Экономит время (~30-60 сек).
         chroma_enabled: Включить ли интеграцию с Chroma для векторного поиска
+        browser_settings: Настройки браузера (headless, timeout, wait_after_action)
     """
+    if browser_settings is None:
+        browser_settings = {"headless": False, "timeout": 30000, "wait_after_action": 2}
     
     return AgentState(
         messages=[],
@@ -113,6 +118,7 @@ def create_initial_state(
         search_attempts=0,
         browser_status="idle",
         browser_session_active=False,
+        browser_settings=browser_settings,
         previous_sessions=previous_sessions or [],
         already_applied_urls=already_applied_urls or set(),
         next_agent="planner",

@@ -2,6 +2,7 @@
 Browser Agent node - работа с браузером
 """
 
+import asyncio
 import logging
 from typing import List
 
@@ -10,7 +11,11 @@ from langchain_core.messages import SystemMessage, ToolMessage, AIMessage, BaseM
 
 from .state import AgentState
 from .prompts import BROWSER_AGENT_PROMPT
-from .utils import _check_if_logged_in
+from .utils import (
+    _check_if_logged_in,
+    _extract_desired_salary,
+    _should_skip_vacancy_by_salary,
+)
 from .chroma_utils import (
     get_chroma_tools,
     ensure_collections_exist,
@@ -25,6 +30,10 @@ MAX_MESSAGES_HISTORY = 30  # Максимум сообщений в истори
 MAX_TOOL_RESULT_SIZE = 5000  # Максимум символов в результате обычного инструмента
 MAX_SNAPSHOT_SIZE = 10000  # Максимум символов для browser_snapshot
 MAX_HTML_SIZE = 8000  # Максимум символов для HTML результатов
+
+# Таймауты для предотвращения зависаний
+MODEL_TIMEOUT = 300  # 5 минут для вызова модели
+TOOL_TIMEOUT = 120  # 2 минуты для вызова инструмента
 
 
 def _truncate_messages(messages: List[BaseMessage], max_messages: int = MAX_MESSAGES_HISTORY) -> List[BaseMessage]:
@@ -303,13 +312,23 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
         else:
             logger.info("❌ Пользователь не авторизован, требуется логин")
     
+    # Получаем настройки браузера
+    browser_settings = state.get("browser_settings", {})
+    headless = browser_settings.get("headless", False)
+    timeout = browser_settings.get("timeout", 30000)
+    
     # Определяем инструкции на основе текущего статуса
     if not state["browser_session_active"]:
-        instructions = """1. Запусти браузер
-2. Перейди на https://hh.ru
-3. Проверь, есть ли на странице кнопка 'Войти' или элементы профиля пользователя
-4. Если есть элементы профиля (имя пользователя, аватар) - пользователь уже авторизован
-5. Если есть кнопка 'Войти' - выполни логин с credentials"""
+        headless_str = "true" if headless else "false"
+        instructions = f"""1. Запусти браузер используя Playwright_navigate с параметрами:
+   - url: "https://hh.ru"
+   - headless: {headless_str}
+   - timeout: {timeout}
+   ВАЖНО: При первом вызове Playwright_navigate передай headless={headless_str} для запуска браузера в нужном режиме
+
+2. После перехода на https://hh.ru проверь, есть ли на странице кнопка 'Войти' или элементы профиля пользователя
+3. Если есть элементы профиля (имя пользователя, аватар) - пользователь уже авторизован
+4. Если есть кнопка 'Войти' - выполни логин с credentials"""
         expected_status = "logged_in"
     elif state["browser_status"] == "logged_in" and not state["vacancies"]:
         if state.get("use_recommended", False):
@@ -361,21 +380,28 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
      ПРОПУСТИ эту вакансию, если это не главная вкладка, то закрой вкладку с вакансией и верни статус 'already_applied'
    - Если кнопка ЕСТЬ → продолжай
    
-3. Кликни на кнопку 'Откликнуться'
+3. ПЕРЕД нажатием кнопки 'Откликнуться' проверь зарплату в вакансии:
+   - Найди информацию о зарплате на странице вакансии
+   - Сравни зарплату из вакансии с желаемой зарплатой из резюме: {resume_data.get('desired_salary', 'не указана')}
+   - Если зарплата в вакансии существенно меньше желаемой (меньше 80% от желаемой) → 
+     ПРОПУСТИ эту вакансию, закрой вкладку с вакансией и верни статус 'salary_too_low'
+   - Если зарплата подходит или не указана → продолжай
+   
+4. Кликни на кнопку 'Откликнуться'
 
-4. После открытия формы отклика проверь и заполни следующие поля (если они пустые или требуют заполнения):
+5. После открытия формы отклика проверь и заполни следующие поля (если они пустые или требуют заполнения):
    - Имя/ФИО: {full_name}
    - Телефон: {phone}
    - Email: {email}
    ВАЖНО: Обычно эти поля уже заполнены из профиля, но проверь их корректность!
 
-5. Найди поле для сопроводительного письма (textarea, input)
+6. Найди поле для сопроводительного письма (textarea, input)
 
-6. Вставь письмо: {state['cover_letter'][:100]}...
+7. Вставь письмо: {state['cover_letter'][:100]}...
 
-7. Нажми кнопку отправки отклика ('Отправить', 'Send')
+8. Нажми кнопку отправки отклика ('Отправить', 'Send')
 
-8. Закрой вкладку с вакансией и вернись на главную вкладку"""
+9. Закрой вкладку с вакансией и вернись на главную вкладку"""
         expected_status = "application_sent"
     else:
         instructions = "Определи, что нужно сделать на основе плана и текущего статуса"
@@ -392,6 +418,34 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
         browser_instructions=instructions
     )
     
+    # Если есть cover_letter и вакансия, проверяем зарплату перед началом обработки
+    if state.get("cover_letter") and state.get("current_vacancy"):
+        # Парсим детали вакансии для проверки зарплаты
+        logger.info("💰 Проверка зарплаты перед отправкой отклика...")
+        current_vacancy = state.get("current_vacancy", {})
+        
+        # Если зарплата еще не была распарсена, пытаемся получить её из вакансии
+        if not current_vacancy.get("salary"):
+            # Пытаемся получить зарплату из уже имеющихся данных
+            logger.debug("   Зарплата в вакансии не указана, будет проверена на странице")
+        else:
+            # Проверяем зарплату если она уже есть в данных вакансии
+            resume_data = state.get("resume_data", {})
+            desired_salary = _extract_desired_salary(resume_data)
+            
+            if desired_salary and _should_skip_vacancy_by_salary(current_vacancy, desired_salary):
+                logger.warning(f"⚠️ Вакансия '{current_vacancy.get('title', 'N/A')}' пропущена из-за низкой зарплаты (проверка до отправки)")
+                vacancy_url = current_vacancy.get("url", "")
+                if vacancy_url and vacancy_url not in state["already_applied_urls"]:
+                    state["already_applied_urls"].add(vacancy_url)
+                
+                # Переходим к следующей вакансии без увеличения счетчика откликов
+                state["current_vacancy_index"] += 1
+                state["current_vacancy"] = None
+                state["cover_letter"] = ""
+                state["browser_status"] = "idle"
+                return state
+    
     # ReAct цикл: модель → инструменты → модель → результат
     # Обрезаем историю сообщений для экономии токенов
     truncated_history = _truncate_messages(state["messages"])
@@ -403,6 +457,9 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
     for iteration in range(max_iterations):
         last_iteration = iteration + 1
         logger.info(f"🔄 Browser Agent итерация {iteration + 1}/{max_iterations}")
+        logger.debug(f"   📊 Состояние: browser_status={state.get('browser_status')}, "
+                    f"vacancies={len(state.get('vacancies', []))}, "
+                    f"current_vacancy_index={state.get('current_vacancy_index', 0)}")
         
         # Получаем ответ от модели с инструментами
         model_with_tools = model.bind_tools(tools)
@@ -422,8 +479,19 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
             system_msgs = [msg for msg in messages if isinstance(msg, SystemMessage)]
             messages = system_msgs + non_system_messages
         
+        # Вызов модели с таймаутом для предотвращения зависаний
+        logger.debug(f"🤖 Вызов модели (таймаут: {MODEL_TIMEOUT}s)...")
         try:
-            response = await model_with_tools.ainvoke(messages)
+            response = await asyncio.wait_for(
+                model_with_tools.ainvoke(messages),
+                timeout=MODEL_TIMEOUT
+            )
+            logger.debug("✅ Модель ответила успешно")
+        except asyncio.TimeoutError:
+            logger.error(f"❌ Таймаут при вызове модели ({MODEL_TIMEOUT}s)")
+            logger.error(f"   Итерация: {iteration + 1}/{max_iterations}")
+            logger.error(f"   Сообщений в истории: {len(messages)}")
+            raise RuntimeError(f"Модель не ответила в течение {MODEL_TIMEOUT} секунд")
         except Exception as e:
             logger.error(f"❌ Ошибка при вызове модели: {e}")
             logger.error(f"   Последнее сообщение: {messages[-1] if messages else 'Нет сообщений'}")
@@ -451,7 +519,13 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
                 try:
                     tool = tools_by_name[tool_name]
                     # MCP инструменты асинхронные
-                    tool_result = await tool.ainvoke(tool_args)
+                    # Добавляем таймаут для предотвращения зависаний
+                    logger.debug(f"     ⏱️ Выполнение {tool_name} (таймаут: {TOOL_TIMEOUT}s)...")
+                    tool_result = await asyncio.wait_for(
+                        tool.ainvoke(tool_args),
+                        timeout=TOOL_TIMEOUT
+                    )
+                    logger.debug(f"     ✅ {tool_name} выполнен успешно")
                     
                     # Обрезаем большие результаты для экономии токенов
                     truncated_result = _truncate_tool_result(str(tool_result), tool_name)
@@ -465,8 +539,20 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
                             name=tool_name
                         )
                     )
+                except asyncio.TimeoutError:
+                    error_msg = f"Таймаут при выполнении {tool_name} ({TOOL_TIMEOUT}s)"
+                    logger.error(f"     ❌ {error_msg}")
+                    logger.error(f"        Аргументы: {tool_args}")
+                    tool_messages.append(
+                        ToolMessage(
+                            content=f"Ошибка: {error_msg}. Инструмент не ответил в течение {TOOL_TIMEOUT} секунд.",
+                            tool_call_id=tool_id,
+                            name=tool_name
+                        )
+                    )
                 except Exception as e:
                     logger.error(f"     ❌ Ошибка выполнения {tool_name}: {e}")
+                    logger.error(f"        Тип ошибки: {type(e).__name__}")
                     tool_messages.append(
                         ToolMessage(
                             content=f"Ошибка: {str(e)}",
@@ -586,15 +672,23 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
                         v.update(current_vacancy)
                         break
             
-            # Если вакансии нет в списке, добавляем её
+            # Если вакансии нет в списке, проверяем зарплату перед добавлением
             if not vacancy_in_list and current_vacancy:
-                state["vacancies"].append(current_vacancy.copy())
-                logger.info(f"   📋 Вакансия добавлена в список vacancies (всего: {len(state['vacancies'])})")
-                # Логируем сброс итераций после добавления вакансии
-                if vacancy_added:
-                    logger.info(f"   🔄 Итерации были сброшены досрочно после успешной отправки отклика (вакансия добавлена на итерации {last_iteration}/{max_iterations})")
+                # Проверяем зарплату перед добавлением в список (только если зарплата еще не проверялась)
+                resume_data = state.get("resume_data", {})
+                desired_salary = _extract_desired_salary(resume_data)
+                
+                if desired_salary and _should_skip_vacancy_by_salary(current_vacancy, desired_salary):
+                    logger.warning(f"   ⚠️ Вакансия '{current_vacancy.get('title', 'N/A')}' не добавлена в список из-за низкой зарплаты")
+                    # Не добавляем вакансию в список, но продолжаем обработку
                 else:
-                    logger.info(f"   🔄 Вакансия добавлена после завершения ReAct цикла (выполнено {last_iteration}/{max_iterations} итераций)")
+                    state["vacancies"].append(current_vacancy.copy())
+                    logger.info(f"   📋 Вакансия добавлена в список vacancies (всего: {len(state['vacancies'])})")
+                    # Логируем сброс итераций после добавления вакансии
+                    if vacancy_added:
+                        logger.info(f"   🔄 Итерации были сброшены досрочно после успешной отправки отклика (вакансия добавлена на итерации {last_iteration}/{max_iterations})")
+                    else:
+                        logger.info(f"   🔄 Вакансия добавлена после завершения ReAct цикла (выполнено {last_iteration}/{max_iterations} итераций)")
             
             # Обновляем статус и счетчик
             state["browser_status"] = "application_sent"
@@ -669,6 +763,38 @@ async def browser_agent_node(state: AgentState, model: ChatOpenAI, tools: list) 
             vacancy_data["is_duplicate"] = True
             
             logger.info("💾 Сохранение информации о дубликате в Chroma...")
+            await store_vacancy(chroma_tools, vacancy_data, state["session_id"])
+        
+        # Переходим к следующей вакансии без увеличения счетчика откликов
+        state["current_vacancy_index"] += 1
+        state["current_vacancy"] = None
+        state["cover_letter"] = ""
+        state["browser_status"] = "idle"
+    
+    # 5. Обработка случая когда зарплата слишком низкая
+    elif "salary_too_low" in last_response.lower():
+        logger.warning(f"⚠️ Вакансия '{state.get('current_vacancy', {}).get('title', 'Unknown')}' пропущена из-за низкой зарплаты")
+        logger.info("➡️ Пропускаем эту вакансию и переходим к следующей")
+        
+        # Парсим детали вакансии для обновления информации о зарплате
+        if state.get("current_vacancy"):
+            logger.info("📋 Обновление информации о вакансии...")
+            updated_vacancy = await _parse_vacancy_details(tools_by_name, state["current_vacancy"])
+            state["current_vacancy"] = updated_vacancy
+        
+        # Добавляем URL в список уже откликнутых
+        if state.get("current_vacancy"):
+            vacancy_url = state['current_vacancy'].get('url', '')
+            if vacancy_url and vacancy_url not in state["already_applied_urls"]:
+                state["already_applied_urls"].add(vacancy_url)
+        
+        # Сохраняем информацию о пропущенной вакансии в Chroma если включен
+        if state.get("chroma_enabled") and chroma_tools and state.get("current_vacancy"):
+            vacancy_data = state["current_vacancy"].copy()
+            vacancy_data["applied"] = False
+            vacancy_data["skipped_by_salary"] = True
+            
+            logger.info("💾 Сохранение информации о пропущенной вакансии в Chroma...")
             await store_vacancy(chroma_tools, vacancy_data, state["session_id"])
         
         # Переходим к следующей вакансии без увеличения счетчика откликов

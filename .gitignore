@@ -40,3 +40,4 @@ screenshots/
 # Chroma vector database
 chroma_data/
 *.chroma
+job_searcher_agent.code-workspace

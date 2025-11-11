@@ -5,6 +5,10 @@ Supervisor node - главный контроллер мультиагентно
 import logging
 
 from .state import AgentState
+from .utils import (
+    _extract_desired_salary,
+    _should_skip_vacancy_by_salary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +45,28 @@ def supervisor_node(state: AgentState) -> AgentState:
             state["next_agent"] = "end"
         # Если есть еще вакансии в списке, продолжаем
         elif state["vacancies"] and state["current_vacancy_index"] < len(state["vacancies"]):
-            # Выбираем следующую вакансию
-            state["current_vacancy"] = state["vacancies"][state["current_vacancy_index"]]
-            logger.info(f"📌 Выбрана следующая вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])}: {state['current_vacancy'].get('title', 'N/A')}")
-            state["next_agent"] = "cover_letter_agent"
+            # Выбираем следующую вакансию с проверкой зарплаты
+            vacancy = state["vacancies"][state["current_vacancy_index"]]
+            
+            # Проверяем зарплату перед выбором вакансии
+            resume_data = state.get("resume_data", {})
+            desired_salary = _extract_desired_salary(resume_data)
+            
+            if desired_salary and _should_skip_vacancy_by_salary(vacancy, desired_salary):
+                # Пропускаем вакансию из-за низкой зарплаты
+                vacancy_url = vacancy.get("url", "")
+                if vacancy_url and vacancy_url not in state["already_applied_urls"]:
+                    state["already_applied_urls"].add(vacancy_url)
+                
+                logger.info(f"⏭️ Пропущена вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])} из-за низкой зарплаты")
+                state["current_vacancy_index"] += 1
+                # Рекурсивно вызываем supervisor_node для выбора следующей вакансии
+                return supervisor_node(state)
+            else:
+                # Вакансия подходит по зарплате
+                state["current_vacancy"] = vacancy
+                logger.info(f"📌 Выбрана следующая вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])}: {state['current_vacancy'].get('title', 'N/A')}")
+                state["next_agent"] = "cover_letter_agent"
         # Если вакансии закончились, но лимит не достигнут - ищем новые
         elif state["applied_count"] < state["max_applications"]:
             logger.info(f"🔍 Нужно найти больше вакансий ({state['applied_count']}/{state['max_applications']}) → Browser Agent (поиск)")
@@ -99,11 +121,29 @@ def supervisor_node(state: AgentState) -> AgentState:
             state["next_agent"] = "browser_agent"
     
     elif state["vacancies"] and not state["current_vacancy"]:
-        # Выбираем следующую вакансию
+        # Выбираем следующую вакансию с проверкой зарплаты
         if state["current_vacancy_index"] < len(state["vacancies"]):
-            state["current_vacancy"] = state["vacancies"][state["current_vacancy_index"]]
-            logger.info(f"📌 Выбрана вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])}: {state['current_vacancy'].get('title')}")
-            state["next_agent"] = "cover_letter_agent"
+            vacancy = state["vacancies"][state["current_vacancy_index"]]
+            
+            # Проверяем зарплату перед выбором вакансии
+            resume_data = state.get("resume_data", {})
+            desired_salary = _extract_desired_salary(resume_data)
+            
+            if desired_salary and _should_skip_vacancy_by_salary(vacancy, desired_salary):
+                # Пропускаем вакансию из-за низкой зарплаты
+                vacancy_url = vacancy.get("url", "")
+                if vacancy_url and vacancy_url not in state["already_applied_urls"]:
+                    state["already_applied_urls"].add(vacancy_url)
+                
+                logger.info(f"⏭️ Пропущена вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])} из-за низкой зарплаты")
+                state["current_vacancy_index"] += 1
+                # Рекурсивно вызываем supervisor_node для выбора следующей вакансии
+                return supervisor_node(state)
+            else:
+                # Вакансия подходит по зарплате
+                state["current_vacancy"] = vacancy
+                logger.info(f"📌 Выбрана вакансия {state['current_vacancy_index'] + 1}/{len(state['vacancies'])}: {state['current_vacancy'].get('title')}")
+                state["next_agent"] = "cover_letter_agent"
         else:
             logger.info("✅ Все вакансии обработаны")
             state["next_agent"] = "end"

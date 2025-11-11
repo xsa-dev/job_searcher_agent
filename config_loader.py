@@ -130,3 +130,26 @@ def get_history_settings(config: Optional[dict] = None) -> dict:
     
     return config.get("history_settings", {})
 
+
+def get_browser_settings(config: Optional[dict] = None) -> dict:
+    """
+    Извлекает настройки браузера
+    
+    Args:
+        config: Словарь конфигурации (если None, загружается автоматически)
+        
+    Returns:
+        Настройки браузера (headless, timeout, wait_after_action и т.д.)
+    """
+    if config is None:
+        config = load_config()
+    
+    browser_settings = config.get("browser_settings", {})
+    
+    # Устанавливаем значения по умолчанию
+    return {
+        "headless": browser_settings.get("headless", False),
+        "timeout": browser_settings.get("timeout", 30000),
+        "wait_after_action": browser_settings.get("wait_after_action", 2),
+    }
+

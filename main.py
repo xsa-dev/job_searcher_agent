@@ -17,6 +17,7 @@ from config_loader import (
     get_resume_data,
     get_hh_credentials,
     get_search_settings,
+    get_browser_settings,
 )
 from hide_me import api_key
 
@@ -61,7 +62,7 @@ async def main():
     client_config = {
         "playwright": {
             "command": "npx",
-            "args": ["-y", "@playwright/mcp@latest"],
+            "args": ["-y", "@playwright/mcp@latest", "--headless"],
             "transport": "stdio",
         }
     }
@@ -170,6 +171,13 @@ async def main():
             vacancy_query = search_settings.get("vacancy_search_query", "Python Backend разработчик")
             city = search_settings.get("city", "Москва")
             
+            # Загружаем настройки браузера
+            browser_settings = get_browser_settings(config)
+            logger.info(f"🌐 Настройки браузера: headless={browser_settings.get('headless')}, timeout={browser_settings.get('timeout')}ms")
+            
+            # Уменьшаем таймаут для отладки
+            browser_settings['timeout'] = 10000
+            
             # Формируем user_request на основе настроек
             user_request = f"Откликнуться на {max_applications} подходящих вакансий {vacancy_query} в {city}"
             
@@ -198,7 +206,8 @@ async def main():
                 previous_sessions=previous_sessions,
                 already_applied_urls=already_applied_urls,
                 use_recommended=use_recommended,
-                chroma_enabled=chroma_enabled
+                chroma_enabled=chroma_enabled,
+                browser_settings=browser_settings
             )
             
             logger.info(f"🎯 Режим поиска: {'Рекомендованные вакансии (блок \"Для вас\")' if use_recommended else 'Детальный поиск по критериям'}")

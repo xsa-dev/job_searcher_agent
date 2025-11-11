@@ -2,6 +2,7 @@
 Planner node - создание и адаптация плана работы
 """
 
+import asyncio
 import logging
 
 from langchain_openai import ChatOpenAI
@@ -18,6 +19,9 @@ from .chroma_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Таймаут для вызова модели
+MODEL_TIMEOUT = 300  # 5 минут
 
 
 async def planner_node(state: AgentState, model: ChatOpenAI, tools: list = None) -> AgentState:
@@ -96,7 +100,19 @@ async def planner_node(state: AgentState, model: ChatOpenAI, tools: list = None)
     # Вызываем LLM
     # ОГРАНИЧЕНИЕ: Минимизируем контекст для экономии токенов
     messages = [SystemMessage(content=prompt)]
-    response = await model.ainvoke(messages)
+    logger.debug(f"🤖 Вызов модели для планирования (таймаут: {MODEL_TIMEOUT}s)...")
+    try:
+        response = await asyncio.wait_for(
+            model.ainvoke(messages),
+            timeout=MODEL_TIMEOUT
+        )
+        logger.debug("✅ Модель ответила успешно")
+    except asyncio.TimeoutError:
+        logger.error(f"❌ Таймаут при вызове модели для планирования ({MODEL_TIMEOUT}s)")
+        raise RuntimeError(f"Модель не ответила в течение {MODEL_TIMEOUT} секунд")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при вызове модели для планирования: {e}")
+        raise
     
     # Парсим ответ
     plan_text = response.content

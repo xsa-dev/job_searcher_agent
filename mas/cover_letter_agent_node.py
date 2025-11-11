@@ -2,6 +2,7 @@
 Cover Letter Agent node - генерация сопроводительных писем
 """
 
+import asyncio
 import logging
 
 from langchain_openai import ChatOpenAI
@@ -17,6 +18,9 @@ from .chroma_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Таймаут для вызова модели
+MODEL_TIMEOUT = 300  # 5 минут
 
 
 async def cover_letter_agent_node(state: AgentState, model: ChatOpenAI, tools: list = None) -> AgentState:
@@ -119,27 +123,29 @@ async def cover_letter_agent_node(state: AgentState, model: ChatOpenAI, tools: l
         portfolio_url=portfolio_url,
         portfolio_url_text=portfolio_url_text,
     )
-
-    card = f"""
-Алексей Савин
-saleksey67@gmail.com
-+79166705363
-LinkedIn: https://www.linkedin.com/in/alxy-dev/
-GitHub: https://github.com/xsa-dev
-Портфолио: Мой портфолио - https://prometheusai-labs.github.io/
-"""
-
-    prompt = prompt.replace("[ИМЯ]", card)
     
     # ОГРАНИЧЕНИЕ: Минимизируем контекст для экономии токенов
     messages = [SystemMessage(content=prompt)]
-    response = await model.ainvoke(messages)
+    logger.debug(f"🤖 Вызов модели для генерации письма (таймаут: {MODEL_TIMEOUT}s)...")
+    try:
+        response = await asyncio.wait_for(
+            model.ainvoke(messages),
+            timeout=MODEL_TIMEOUT
+        )
+        logger.debug("✅ Модель ответила успешно")
+    except asyncio.TimeoutError:
+        logger.error(f"❌ Таймаут при вызове модели для генерации письма ({MODEL_TIMEOUT}s)")
+        raise RuntimeError(f"Модель не ответила в течение {MODEL_TIMEOUT} секунд")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при вызове модели для генерации письма: {e}")
+        raise
     
     # Парсим письмо
     cover_letter = _parse_cover_letter(response.content)
     state["cover_letter"] = cover_letter
 
     cover_letter = cover_letter.replace("[ИМЯ]", name)
+    cover_letter = cover_letter.replace("[ВАШЕ ИМЯ]", name)
     
     logger.info(f"✅ Письмо создано ({len(cover_letter)} символов)")
     logger.info(f"Превью: {cover_letter[:200]}...")
