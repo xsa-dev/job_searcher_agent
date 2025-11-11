@@ -55,6 +55,7 @@ uv run main.py
 
 - Python 3.12+
 - Node.js (для Playwright MCP)
+- npx (для установки MCP серверов)
 - uv (менеджер пакетов)
 
 ### Шаги установки
