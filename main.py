@@ -62,7 +62,7 @@ async def main():
     client_config = {
         "playwright": {
             "command": "npx",
-            "args": ["-y", "@playwright/mcp@latest", "--headless"],
+            "args": ["-y", "@playwright/mcp@latest", "--headless"], # TODO: remove headless if you want to see the browser
             "transport": "stdio",
         }
     }
