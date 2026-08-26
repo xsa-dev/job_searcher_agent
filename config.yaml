@@ -4,9 +4,11 @@ model:
   base_url: https://foundation-models.api.cloud.ru/v1
   api_mode: chat_completions
 
-# LLM proxy is NOT in this file. Set HTTPS_PROXY / HTTP_PROXY / NO_PROXY
-# in the profile .env so secrets stay out of git. Hermes passes them to httpx.
-# Playwright below sets NO_PROXY so hh.ru is not sent through that proxy.
+# Two proxies, both only in .env:
+#   HTTPS_PROXY  — LLM (cloud.ru)
+#   BROWSER_PROXY — Playwright / hh.ru (Russian IP)
+# Playwright subprocess gets BROWSER_PROXY as its HTTP(S)_PROXY so it does
+# not inherit the LLM proxy. Hermes expands ${BROWSER_PROXY} from profile .env.
 
 mcp_servers:
   playwright:
@@ -15,7 +17,9 @@ mcp_servers:
     idle_timeout_seconds: 900
     max_lifetime_seconds: 86400
     env:
-      NO_PROXY: "hh.ru,.hh.ru,www.hh.ru,api.hh.ru,localhost,127.0.0.1,::1"
+      HTTPS_PROXY: "${BROWSER_PROXY}"
+      HTTP_PROXY: "${BROWSER_PROXY}"
+      ALL_PROXY: "${BROWSER_PROXY}"
 
 skills:
   config:
