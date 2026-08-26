@@ -1,0 +1,22 @@
+{
+  "id": "hh-daily-apply",
+  "name": "HH daily auto-apply",
+  "prompt": "Run the HH.ru auto-apply loop using the hh-apply skill. Read limits from skills.config.jobsearcher. Login with HH_LOGIN/HH_PASSWORD from env (never echo them). Prefer tab Для вас when use_recommended is true. Skip already_applied URLs and salary_too_low. Confirm each apply with ОТКЛИК ОТПРАВЛЕН or the click-type-submit sequence. Stop at max_applications. If nothing new to apply, respond with only [SILENT].",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 10 * * 1-5",
+    "display": "0 10 * * 1-5"
+  },
+  "skills": ["hh-login", "hh-search", "cover-letter", "hh-apply"],
+  "deliver": "local",
+  "repeat": { "times": null, "completed": 0 },
+  "state": "paused",
+  "enabled": false,
+  "next_run_at": null,
+  "last_run_at": null,
+  "last_status": null,
+  "created_at": "2026-08-26T00:00:00Z",
+  "model": null,
+  "provider": null,
+  "script": null
+}

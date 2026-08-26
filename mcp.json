@@ -1,0 +1,13 @@
+{
+  "playwright": {
+    "command": "npx",
+    "args": ["-y", "@playwright/mcp@latest"],
+    "idle_timeout_seconds": 900,
+    "max_lifetime_seconds": 86400,
+    "env": {
+      "HTTPS_PROXY": "${BROWSER_PROXY}",
+      "HTTP_PROXY": "${BROWSER_PROXY}",
+      "ALL_PROXY": "${BROWSER_PROXY}"
+    }
+  }
+}

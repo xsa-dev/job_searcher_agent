@@ -1,0 +1,38 @@
+# LLM is NOT pinned here. After install:
+#   hermes -p job-searcher setup model
+# (or `hermes setup model` on the default profile, then copy provider/model).
+# Do not set OPENAI_API_KEY / HTTPS_PROXY for cloud.ru — inference uses
+# whatever Hermes is configured with.
+#
+# Playwright / hh.ru uses BROWSER_PROXY only. The MCP subprocess gets it as
+# HTTP(S)_PROXY so the browser does not inherit any LLM proxy from the shell.
+
+mcp_servers:
+  playwright:
+    command: "npx"
+    args: ["-y", "@playwright/mcp@latest"]
+    idle_timeout_seconds: 900
+    max_lifetime_seconds: 86400
+    env:
+      HTTPS_PROXY: "${BROWSER_PROXY}"
+      HTTP_PROXY: "${BROWSER_PROXY}"
+      ALL_PROXY: "${BROWSER_PROXY}"
+
+skills:
+  config:
+    jobsearcher:
+      max_applications: "5"
+      use_recommended: "true"
+      salary_threshold: "0.8"
+      city: "Москва"
+      vacancy_search_query: "Python Backend разработчик"
+      experience: "between1And3"
+
+cron:
+  wrap_response: true
+
+display:
+  tool_progress: "new"
+
+agent:
+  max_turns: none

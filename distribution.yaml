@@ -1,0 +1,51 @@
+name: job-searcher
+version: 1.0.4
+description: "HH.ru: first-resume voice intake, vacancy pack, optional auto-apply. LLM via `hermes setup model`; browser/HH via BROWSER_PROXY (RU)."
+hermes_requires: ">=0.12.0"
+author: "Aleksey Savin"
+license: "MIT"
+
+env_requires:
+  - name: BROWSER_PROXY
+    description: "Russian proxy for Playwright/HH (http:// or socks5://). LLM does not use this."
+    required: true
+  - name: NO_PROXY
+    description: "Hosts that bypass any inherited proxy (loopback). Do not list hh.ru."
+    required: false
+    default: "localhost,127.0.0.1"
+  - name: HH_LOGIN
+    description: "HeadHunter account email. Needed for search/apply, not for resume-intake alone."
+    required: false
+    default: ""
+  - name: HH_PASSWORD
+    description: "HeadHunter account password. Never paste into chat."
+    required: false
+    default: ""
+  - name: RESUME_FULL_NAME
+    description: "Candidate full name for cover-letter signature"
+    required: false
+    default: ""
+  - name: RESUME_EMAIL
+    description: "Contact email for cover letters"
+    required: false
+    default: ""
+  - name: RESUME_PHONE
+    description: "Contact phone for cover letters"
+    required: false
+    default: ""
+  - name: RESUME_TITLE
+    description: "Headline / target role, e.g. Python Backend Developer"
+    required: false
+    default: ""
+  - name: RESUME_TAGS
+    description: "Comma-separated skills used in letters"
+    required: false
+    default: ""
+  - name: RESUME_SUMMARY
+    description: "Short professional summary for letters"
+    required: false
+    default: ""
+  - name: DESIRED_SALARY
+    description: "Minimum desired salary in RUB (used for 80% skip threshold). Empty = no filter."
+    required: false
+    default: ""
