@@ -3,6 +3,9 @@
     "command": "npx",
     "args": ["-y", "@playwright/mcp@latest"],
     "idle_timeout_seconds": 900,
-    "max_lifetime_seconds": 86400
+    "max_lifetime_seconds": 86400,
+    "env": {
+      "NO_PROXY": "hh.ru,.hh.ru,www.hh.ru,api.hh.ru,localhost,127.0.0.1,::1"
+    }
   }
 }

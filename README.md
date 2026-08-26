@@ -17,7 +17,7 @@ LangGraph-код в `mas/` и `main.py` — **legacy**. Рабочий путь 
 
 ## Установка
 
-Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, ключ cloud.ru (MiniMax, OpenAI-compatible).
+Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, ключ cloud.ru (MiniMax, OpenAI-compatible), HTTP/SOCKS прокси для LLM.
 
 ```bash
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
@@ -31,6 +31,9 @@ cp ~/.hermes/profiles/job-searcher/.env.EXAMPLE ~/.hermes/profiles/job-searcher/
 
 ```env
 OPENAI_API_KEY=...
+HTTPS_PROXY=http://127.0.0.1:7890
+# HTTP_PROXY=http://127.0.0.1:7890
+NO_PROXY=hh.ru,.hh.ru,www.hh.ru,api.hh.ru,localhost,127.0.0.1
 HH_LOGIN=you@example.com
 HH_PASSWORD=...
 RESUME_FULL_NAME=...
@@ -42,9 +45,20 @@ RESUME_SUMMARY=...
 DESIRED_SALARY=200000
 ```
 
+`HTTPS_PROXY` может быть `http://host:port` или `socks5://host:port`. Логин/пароль прокси клади в URL (`http://user:pass@host:port`), не в чат.
+
 Модель уже прописана в `config.yaml`: `MiniMaxAI/MiniMax-M2` на `https://foundation-models.api.cloud.ru/v1` (`provider: custom`, не `minimax`).
 
 Лимиты и «Для вас» — в `skills.config.jobsearcher` внутри `config.yaml`.
+
+## LLM через proxy, HH без него
+
+HH с VPN/прокси не открывается. Разделение такое:
+
+- Запросы к LLM (cloud.ru) идут через `HTTPS_PROXY` в `.env`. Hermes отдаёт это в httpx (`HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`).
+- Браузер Playwright на hh.ru **не** должен идти в тот же прокси. В `.env` и в `mcp_servers.playwright.env` стоит `NO_PROXY` с `hh.ru`.
+
+Если HH всё равно не грузится, проверь что системный VPN выключен для браузера, а прокси висит только на LLM.
 
 ## Запуск
 

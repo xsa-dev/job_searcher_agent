@@ -1,6 +1,6 @@
 name: job-searcher
-version: 1.0.0
-description: "HH.ru job search + auto-apply: login, recommended feed, Russian cover letters, duplicate skip, apply cap"
+version: 1.0.1
+description: "HH.ru job search + auto-apply: login, recommended feed, Russian cover letters, duplicate skip, apply cap. LLM via HTTPS_PROXY, HH off-proxy."
 hermes_requires: ">=0.12.0"
 author: "Aleksey Savin"
 license: "MIT"
@@ -9,6 +9,17 @@ env_requires:
   - name: OPENAI_API_KEY
     description: "API key for cloud.ru Foundation Models (OpenAI-compatible MiniMax)"
     required: true
+  - name: HTTPS_PROXY
+    description: "Proxy URL for LLM requests (http://host:port or socks5://host:port). HH.ru must not use this proxy."
+    required: true
+  - name: HTTP_PROXY
+    description: "Optional HTTP proxy; leave empty if HTTPS_PROXY is enough"
+    required: false
+    default: ""
+  - name: NO_PROXY
+    description: "Hosts that bypass the proxy so HeadHunter stays reachable"
+    required: false
+    default: "hh.ru,.hh.ru,www.hh.ru,api.hh.ru,localhost,127.0.0.1"
   - name: HH_LOGIN
     description: "HeadHunter account email"
     required: true
