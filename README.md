@@ -17,7 +17,7 @@ LangGraph-код в `mas/` и `main.py` — **legacy**. Рабочий путь 
 
 ## Установка
 
-Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, ключ cloud.ru (MiniMax, OpenAI-compatible), HTTP/SOCKS прокси для LLM.
+Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, ключ cloud.ru, прокси для LLM и российский прокси для браузера.
 
 ```bash
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
@@ -32,8 +32,7 @@ cp ~/.hermes/profiles/job-searcher/.env.EXAMPLE ~/.hermes/profiles/job-searcher/
 ```env
 OPENAI_API_KEY=...
 HTTPS_PROXY=http://127.0.0.1:7890
-# HTTP_PROXY=http://127.0.0.1:7890
-NO_PROXY=hh.ru,.hh.ru,www.hh.ru,api.hh.ru,localhost,127.0.0.1
+BROWSER_PROXY=http://user:pass@ru-proxy-host:port
 HH_LOGIN=you@example.com
 HH_PASSWORD=...
 RESUME_FULL_NAME=...
@@ -45,44 +44,19 @@ RESUME_SUMMARY=...
 DESIRED_SALARY=200000
 ```
 
-`HTTPS_PROXY` может быть `http://host:port` или `socks5://host:port`. Логин/пароль прокси клади в URL (`http://user:pass@host:port`), не в чат.
+Два разных прокси:
+- `HTTPS_PROXY` — только LLM (cloud.ru).
+- `BROWSER_PROXY` — только Playwright / hh.ru, российский IP. `http://` или `socks5://`.
 
-Модель уже прописана в `config.yaml`: `MiniMaxAI/MiniMax-M2` на `https://foundation-models.api.cloud.ru/v1` (`provider: custom`, не `minimax`).
-
-Лимиты и «Для вас» — в `skills.config.jobsearcher` внутри `config.yaml`.
-
-## LLM через proxy, HH без него
-
-HH с VPN/прокси не открывается. Разделение такое:
-
-- Запросы к LLM (cloud.ru) идут через `HTTPS_PROXY` в `.env`. Hermes отдаёт это в httpx (`HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`).
-- Браузер Playwright на hh.ru **не** должен идти в тот же прокси. В `.env` и в `mcp_servers.playwright.env` стоит `NO_PROXY` с `hh.ru`.
-
-Если HH всё равно не грузится, проверь что системный VPN выключен для браузера, а прокси висит только на LLM.
+Модель: `MiniMaxAI/MiniMax-M2` на `https://foundation-models.api.cloud.ru/v1` (`provider: custom`).
 
 ## Запуск
 
 ```bash
 job-searcher chat
-# или:
-hermes -p job-searcher
 ```
 
-Первый заход: в чате «откликнись на вакансии как обычно». Браузер headed, чтобы пройти капчу / 2FA руками, если HH покажет.
-
-Cron из дистрибутива **не включается сам**:
-
-```bash
-hermes -p job-searcher gateway start
-hermes -p job-searcher cron list
-# включи «HH daily auto-apply» когда логин уже стабильно проходит
-```
-
-После обновления профиля `config.yaml` у тебя сохранится. Чтобы подтянуть MCP/модель с апстрима:
-
-```bash
-hermes profile update job-searcher --force-config
-```
+Cron из дистрибутива не включается сам: `hermes -p job-searcher cron list`.
 
 ## Скиллы
 
@@ -93,15 +67,13 @@ hermes profile update job-searcher --force-config
 | `cover-letter` | Письмо 500–800 символов |
 | `hh-apply` | Супервизор: цикл до лимита |
 
-Инструменты браузера: `mcp_playwright_browser_click` / `browser_type` / `browser_snapshot`. Старые имена `Playwright_*` из прошлых доков не использовать.
-
 ## Отказ от ответственности
 
-Автоотклики могут нарушать правила HH. Капча, бан, утечка пароля — твой риск. Сначала прогони 1 отклик и смотри глазами.
+Автоотклики могут нарушать правила HH. Запускай на свой риск.
 
 ## Legacy: LangGraph
 
-Старый запуск (`uv sync` + `uv run python main.py` + `config.json`) ещё в репозитории. Не основной путь. См. `mas/`, `docs/GRAPH_AGENT_README.md`.
+`uv run python main.py` ещё в репозитории. Не основной путь.
 
 ## License
 
