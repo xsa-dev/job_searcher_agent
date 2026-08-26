@@ -17,22 +17,21 @@ LangGraph-код в `mas/` и `main.py` — **legacy**. Рабочий путь 
 
 ## Установка
 
-Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, ключ cloud.ru, прокси для LLM и российский прокси для браузера.
+Нужны: [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation), Node.js / `npx`, аккаунт HH, российский прокси для браузера. Модель — через `hermes setup model` (не cloud.ru).
 
 ```bash
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
-hermes setup
+hermes setup model
 
 hermes profile install github.com/xsa-dev/job_searcher_agent --alias
 cp ~/.hermes/profiles/job-searcher/.env.EXAMPLE ~/.hermes/profiles/job-searcher/.env
+hermes -p job-searcher setup model
 ```
 
 Заполни `.env`:
 
 ```env
-OPENAI_API_KEY=...
-HTTPS_PROXY=http://127.0.0.1:7890
-BROWSER_PROXY=http://user:pass@ru-proxy-host:port
+BROWSER_PROXY=socks5://user:pass@ru-proxy-host:port
 HH_LOGIN=you@example.com
 HH_PASSWORD=...
 RESUME_FULL_NAME=...
@@ -44,11 +43,9 @@ RESUME_SUMMARY=...
 DESIRED_SALARY=200000
 ```
 
-Два разных прокси:
-- `HTTPS_PROXY` — только LLM (cloud.ru).
-- `BROWSER_PROXY` — только Playwright / hh.ru, российский IP. `http://` или `socks5://`.
+`BROWSER_PROXY` — только Playwright / hh.ru, российский IP. `http://` или `socks5://`.
 
-Модель: `MiniMaxAI/MiniMax-M2` на `https://foundation-models.api.cloud.ru/v1` (`provider: custom`).
+LLM ходит через провайдера, выбранного в `hermes setup model`. `OPENAI_API_KEY` и `HTTPS_PROXY` для cloud.ru не нужны.
 
 ## Запуск
 

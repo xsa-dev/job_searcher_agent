@@ -1,14 +1,11 @@
-model:
-  default: MiniMaxAI/MiniMax-M2
-  provider: custom
-  base_url: https://foundation-models.api.cloud.ru/v1
-  api_mode: chat_completions
-
-# Two proxies, both only in .env:
-#   HTTPS_PROXY  — LLM (cloud.ru)
-#   BROWSER_PROXY — Playwright / hh.ru (Russian IP)
-# Playwright subprocess gets BROWSER_PROXY as its HTTP(S)_PROXY so it does
-# not inherit the LLM proxy. Hermes expands ${BROWSER_PROXY} from profile .env.
+# LLM is NOT pinned here. After install:
+#   hermes -p job-searcher setup model
+# (or `hermes setup model` on the default profile, then copy provider/model).
+# Do not set OPENAI_API_KEY / HTTPS_PROXY for cloud.ru — inference uses
+# whatever Hermes is configured with.
+#
+# Playwright / hh.ru uses BROWSER_PROXY only. The MCP subprocess gets it as
+# HTTP(S)_PROXY so the browser does not inherit any LLM proxy from the shell.
 
 mcp_servers:
   playwright:
@@ -33,8 +30,6 @@ skills:
 
 cron:
   wrap_response: true
-  model: MiniMaxAI/MiniMax-M2
-  model_provider: custom
 
 display:
   tool_progress: "new"

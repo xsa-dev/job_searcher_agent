@@ -1,27 +1,16 @@
 name: job-searcher
-version: 1.0.2
-description: "HH.ru job search + auto-apply. LLM via HTTPS_PROXY, browser/HH via BROWSER_PROXY (RU)."
+version: 1.0.3
+description: "HH.ru job search + auto-apply. LLM via `hermes setup model`; browser/HH via BROWSER_PROXY (RU)."
 hermes_requires: ">=0.12.0"
 author: "Aleksey Savin"
 license: "MIT"
 
 env_requires:
-  - name: OPENAI_API_KEY
-    description: "API key for cloud.ru Foundation Models (OpenAI-compatible MiniMax)"
-    required: true
-  - name: HTTPS_PROXY
-    description: "Proxy URL for LLM requests to cloud.ru (http:// or socks5://). Not used for hh.ru."
-    required: true
-  - name: HTTP_PROXY
-    description: "Optional HTTP proxy for LLM; leave empty if HTTPS_PROXY is enough"
-    required: false
-    default: ""
   - name: BROWSER_PROXY
-    description: "Russian proxy for Playwright/HH (http:// or socks5://). Separate from HTTPS_PROXY."
-    required: false
-    default: ""
+    description: "Russian proxy for Playwright/HH (http:// or socks5://). LLM does not use this."
+    required: true
   - name: NO_PROXY
-    description: "Hosts that bypass the LLM proxy (loopback). hh.ru must NOT be listed if BROWSER_PROXY is set."
+    description: "Hosts that bypass any inherited proxy (loopback). Do not list hh.ru."
     required: false
     default: "localhost,127.0.0.1"
   - name: HH_LOGIN
