@@ -1,0 +1,33 @@
+model:
+  default: MiniMaxAI/MiniMax-M2
+  provider: custom
+  base_url: https://foundation-models.api.cloud.ru/v1
+  api_mode: chat_completions
+
+mcp_servers:
+  playwright:
+    command: "npx"
+    args: ["-y", "@playwright/mcp@latest"]
+    idle_timeout_seconds: 900
+    max_lifetime_seconds: 86400
+
+skills:
+  config:
+    jobsearcher:
+      max_applications: "5"
+      use_recommended: "true"
+      salary_threshold: "0.8"
+      city: "Москва"
+      vacancy_search_query: "Python Backend разработчик"
+      experience: "between1And3"
+
+cron:
+  wrap_response: true
+  model: MiniMaxAI/MiniMax-M2
+  model_provider: custom
+
+display:
+  tool_progress: "new"
+
+agent:
+  max_turns: none

@@ -1,0 +1,8 @@
+{
+  "playwright": {
+    "command": "npx",
+    "args": ["-y", "@playwright/mcp@latest"],
+    "idle_timeout_seconds": 900,
+    "max_lifetime_seconds": 86400
+  }
+}
